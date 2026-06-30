@@ -1,4 +1,8 @@
 """
+Clipboard History Module
+author: teddyBear
+license: MIT
+
 Manages a capped in-memory queue of clipboard snapshots.
 The queue lives only in RAM — it is empty on every session start.
 
