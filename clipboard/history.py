@@ -83,7 +83,15 @@ class ClipboardItem:
     #Size
     @property
     def size_bytes(self) -> int:
-        pass
+        """Total RAM footprint of this item's content."""
+        total = 0
+        if self.text:
+            total += len(self.text.encode("utf-8"))
+        if self.image:
+            total += len(self.image)
+        for f in self.files:
+            total += len(f.encode("utf-8"))
+        return total
 
     # ------------------------------------------------------------------
     # Helpers
@@ -300,9 +308,9 @@ class ClipboardHistory:
         """Buffer usage summary — useful for debugging / status bar."""
         return {
             "count":            self.count,
-            "max_size":         self._max_size,
+            "max_size":         int(self._max_size),
             "buffer_bytes":     self.buffer_bytes,
-            "max_buffer_bytes": self._max_buffer_bytes,
+            "max_buffer_bytes": int(self._max_buffer_bytes),  # ← cast aquí
             "buffer_mb":        round(self.buffer_bytes / 1024 / 1024, 2),
             "pinned":           sum(1 for it in self._items if it.pinned),
             "truncated":        sum(1 for it in self._items if it.truncated),

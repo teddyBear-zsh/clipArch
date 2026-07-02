@@ -1,151 +1,135 @@
 """
-Clipboard Watcher Module
-author: teddyBear
-license: MIT
+Clipboard Watcher — native GDK4 clipboard signal, no external process
 
-Polls the system clipboard at a fixed interval and feeds new content
-into a ClipboardHistory instance. Designed to integrate with GLib's
-main loop (GTK4) via GLib.timeout_add(), but also works as a plain
-blocking loop for headless/daemon use (e.g. testing without a UI).
+Why this rewrite exists:
+Both previous approaches (polling wl-paste on a timer, and running
+`wl-paste --watch`) spawn or maintain a *separate* Wayland client
+(app id "io.github.bugaevc.wl-clipboard") outside the app itself.
 
-Design notes
-------------
-- Polling, not event-based: X11/Wayland don't expose a portable
-    "clipboard changed" signal across both xclip and wl-clipboard, so we
-    poll at POLL_INTERVAL_MS and compare hashes to detect changes cheaply.
-- The watcher itself does NOT read full content on every tick — it only
-    asks for clipboard TYPES first (cheap call) and only fetches full
-    content (text/image bytes) when a change is detected. This keeps CPU
-    usage near-zero while idle.
-- A callback (on_change) is invoked whenever a new item is successfully
-    added to history, so the UI layer can refresh its card list reactively.
+- Polling spawned a new client twice a second -> GNOME showed
+  repeated "app tries to open but fails" launch animations.
+- `--watch` mode depends on the wlr-data-control-unstable-v1 protocol,
+  which originated in wlroots (Sway/Hyprland) for clipboard-manager
+  use cases. GNOME's Mutter has historically had partial/no support
+  for it, which is consistent with the connection failing and
+  restarting in a loop.
+
+Fix: use Gdk.Clipboard, the same clipboard API every native GTK app
+already uses for ordinary copy/paste. It rides on the standard
+Wayland data-device protocol that GNOME fully supports (basic
+copy/paste has to work for every app), and it's part of the same
+process, in the same Wayland connection the app already has via GTK
+- no subprocess, no separate client, no app id for GNOME to track.
+
+Trade-off: this only works while the app's GTK main loop is running
+(which it always is here), and it currently reads text content only,
+matching the scope of the previous implementation.
 """
 
 from __future__ import annotations
 
 import hashlib
 import sys
-import time
 from typing import Callable, Optional
+
+from gi.repository import Gdk, GLib
 
 from .manager import ClipboardManager, ClipboardType
 from .history import ClipboardHistory, ClipboardItem
 
-POLL_INTERVAL_MS = 500 # Polling interval
 
 class ClipboardWatcher:
-    """ 
-    Watches the system clipboard for changer and records them into 
-    a ClipboardHistory instance.
-
-    Usage standalone:
-        watcher = ClipboardWatcher(history)
-    """
-
     def __init__(
         self,
         history: ClipboardHistory,
         manager: Optional[ClipboardManager] = None,
         on_change: Optional[Callable[[ClipboardItem], None]] = None,
-        poll_interval_ms: int = POLL_INTERVAL_MS,
-        ignore_own_writes: bool = True,
+        display: Optional[Gdk.Display] = None,
     ):
         self.history = history
         self.manager = manager or ClipboardManager()
         self.on_change = on_change
-        self.poll_interval_ms = poll_interval_ms
-        self.ignore_own_writes = ignore_own_writes
-
-        self._last_types_hash: Optional[str] = None
-        self._running = False
-
-        # Set right after this watcher itself writes to the clipboard
-        # (e.g. via "paste" action), so the next tick doesn't re-add
-        # the same content as if the user had copied it
 
         self._suppress_next_change = False
+        self._last_content_hash: str | None = None
 
-        if not self.manager.is_endpoint_available:
-            print(
-                "[ClipboardWatcher] No clipboard enpoint available."
-                "Watchar will be inactive. (Are you running in a headless environment?)",
-                file=sys.stderr,
-            )
+        self._display = display or Gdk.Display.get_default()
+        self._clipboard = self._display.get_clipboard() if self._display else None
+        self._signal_id: int | None = None
 
-    #-----------------------------------
-    #Public control
-    #-----------------------------------
+    # ------------------------------------------------------------------
+    # public API
+    # ------------------------------------------------------------------
 
     def suppress_next_change(self) -> None:
-        """
-        Call this right before the watcher itself writes to the clipboard
-        (e.g. when implemmenting 'paste selected item'), so the write
-        isn't treated as a new user copy and re-added to history.
-        """
-
         self._suppress_next_change = True
 
-    def run_forever(self) -> None:
-        """
-        Blocking polling loop for headless/daemon use.
-        """
+    def start(self) -> None:
+        if not self._clipboard:
+            print("[Watcher] No Gdk.Display available - clipboard watching disabled", file=sys.stderr)
+            return
+        self._signal_id = self._clipboard.connect("changed", self._on_clipboard_changed)
 
-        self._running = True
-        print("[ClipboardWatcher] Started polling loop. Press Ctrl+C to exit.", file=sys.stderr)
-        try:
-            while self._running:
-                self.tick()
-                time.sleep(self.poll_interval_ms / 1000)
-        except KeyboardInterrupt:
-            print("[ClipboardWatcher] Stopped polling loop.", file=sys.stderr)
-        finally:
-            self._running = False
-        
     def stop(self) -> None:
-        """Stop the polling loop (run_forever). No-op for Glib mode."""
-        self._running = False
-    
-    #-----------------------------------
-    #Core tick
-    #------------------------------------
+        if self._clipboard and self._signal_id is not None:
+            try:
+                self._clipboard.disconnect(self._signal_id)
+            except Exception:
+                pass
+            self._signal_id = None
 
-    def tick(self) -> None:
-        """
-        Single polling step:
-        -Cheaply Check if clipboard TYPES changed (not full content read)
-        -If changed, fetch full content and try to add to history
-        -Invoke on_change callback if a new item was added
+    # ------------------------------------------------------------------
+    # event handling
+    # ------------------------------------------------------------------
 
-        Note: Returns True alwas, this is the expected return value for GLib.timeout_add() to keep 
-        the timer repeating.        
-        """
-        if not self.manager.is_endpoint_available:
-            return True #keep timer alive but do nothing
-        
-        types = self.manager.get_clipboard_types()
-        types_hash = self._hash_types(types)
+    def _on_clipboard_changed(self, clipboard: Gdk.Clipboard) -> None:
+        # Attempt a text read. If the new clipboard content isn't text
+        # (e.g. an image), read_text_finish will report failure and
+        # we simply skip it - matches the text-only scope of the
+        # previous implementation.
+        clipboard.read_text_async(None, self._on_text_ready)
 
-        #Nothing changed since last tick - cheap exit
-        if types_hash == self._last_types_hash:
-            return True
-        
-        self._last_types_hash = types_hash
+    def _on_text_ready(self, clipboard: Gdk.Clipboard, result) -> None:
+        try:
+            text = clipboard.read_text_finish(result)
+        except GLib.Error:
+            return
 
-        #This change was caused by our own "paste" write, skip it once
+        if not text:
+            return
+
+        self._handle_new_content(text)
+
+    def _handle_new_content(self, text: str) -> None:
+        new_hash = self._hash(text)
+
+        if new_hash == self._last_content_hash:
+            return
+
         if self._suppress_next_change:
             self._suppress_next_change = False
-            return True
-        
-        if not types:
-            return True #clipboard was cleared, nothing to record
-        
+            self._last_content_hash = new_hash
+            return
 
+        self._last_content_hash = new_hash
 
-    #----------------------------------------
-    # Helpers
-    #----------------------------------------
-    
-    def _hash_types(types: list) -> str:
-        """ Cheep fingerprint of the current clipboard TARGETS list."""
-        joined = "|".join(sorted(types))
-        return hashlib.md5(joined.encode()).hexdigest()
+        snapshot = {
+            "type": ClipboardType.TEXT,
+            "text": text,
+            "image": None,
+            "files": [],
+        }
+
+        item = self.history.add(snapshot)
+
+        if item and self.on_change:
+            self.on_change(item)
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    def _hash(self, content: str | bytes) -> str:
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+        return hashlib.sha256(content).hexdigest()

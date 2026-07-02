@@ -284,6 +284,49 @@ class ClipboardManager:
 
         return False
 
+    # ------------------------------------------------------------------
+    # High-level accessors (used by ClipboardWatcher)
+    # ------------------------------------------------------------------
+
+    def has_text(self) -> bool:
+        """Return True when the clipboard currently holds text or emoji content."""
+        return self.detect_content_type() in (ClipboardType.TEXT, ClipboardType.EMOJI)
+
+    def get_text(self) -> Optional[str]:
+        """Return the current clipboard text, or None if unavailable."""
+        return self.get_text_content()
+
+    def has_image(self) -> bool:
+        """Return True when the clipboard currently holds image content."""
+        return self.detect_content_type() == ClipboardType.IMAGE
+
+    def get_image(self) -> Optional[bytes]:
+        """Return the current clipboard image bytes, or None if unavailable."""
+        return self.get_image_content()
+
+    def get_current_item(self) -> "tuple[str, str | bytes] | None":
+        """
+        Detect the current clipboard content type and return it as a
+        ``(ClipboardType, content)`` tuple, or ``None`` when the clipboard
+        is empty or holds an unsupported type.
+
+        Calls ``detect_content_type()`` exactly once so the MIME-type query
+        is not duplicated between detection and reading.
+        """
+        content_type = self.detect_content_type()
+
+        if content_type in (ClipboardType.TEXT, ClipboardType.EMOJI):
+            text = self.get_text_content()
+            if text is not None:
+                return (content_type, text)
+
+        elif content_type == ClipboardType.IMAGE:
+            image = self.get_image_content()
+            if image is not None:
+                return (content_type, image)
+
+        return None
+
     def read_current(self) -> dict:
         """
         Snapshot the current clipboard and return a unified dict:
