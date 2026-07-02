@@ -1,0 +1,133 @@
+/*
+ * Catppuccin Mocha theme
+ * Same selectors as default.css — only color values change.
+ * To activate: set theme = "catppuccin" in ~/.config/clipboard-manager/config.toml
+ */
+
+@define-color base     #1e1e2e;
+@define-color mantle    #181825;
+@define-color surface0  #313244;
+@define-color text      #cdd6f4;
+@define-color subtext0  #a6adc8;
+@define-color overlay0  #6c7086;
+@define-color mauve     #cba6f7;
+@define-color red       #f38ba8;
+
+.clipboard-popup {
+  background-color: @base;
+  border-radius: 14px;
+  border: 1px solid @surface0;
+  box-shadow: 0 12px 40px alpha(black, 0.5);
+}
+
+.popup-root { background-color: transparent; }
+
+.toolbar { background-color: transparent; }
+
+.filter-group {
+  background-color: @mantle;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.filter-button {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 4px;
+  border-radius: 6px;
+  color: @subtext0;
+}
+
+.filter-button:checked {
+  background-color: @mauve;
+  color: @base;
+}
+
+.filter-button:hover:not(:checked) {
+  background-color: alpha(@text, 0.08);
+}
+
+.clear-all-button {
+  font-size: 0.85em;
+  color: @subtext0;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.clear-all-button:hover {
+  background-color: alpha(@red, 0.15);
+  color: @red;
+}
+
+.stats-label {
+  font-size: 0.75em;
+  color: @overlay0;
+}
+
+.toolbar-separator {
+  background-color: @surface0;
+  min-height: 1px;
+}
+
+.card-list { background-color: transparent; padding: 6px; }
+
+.clipboard-card {
+  background-color: transparent;
+  border-radius: 10px;
+  margin: 2px 0;
+  border-left: 3px solid transparent;
+  transition: background-color 120ms ease;
+}
+
+.clipboard-card:hover { background-color: @mantle; }
+
+.clipboard-card.pinned {
+  border-left: 3px solid @mauve;
+  background-color: alpha(@mauve, 0.08);
+}
+
+.clipboard-card.pinned:hover { background-color: alpha(@mauve, 0.14); }
+
+.clipboard-card.truncated { opacity: 0.6; }
+.clipboard-card.truncated:hover { background-color: transparent; }
+
+.card-row { background-color: transparent; }
+
+.card-icon {
+  color: @subtext0;
+  background-color: @mantle;
+  border-radius: 8px;
+}
+
+.card-thumbnail { border-radius: 8px; }
+
+.card-preview { font-size: 0.95em; color: @text; }
+
+.card-preview.monospace {
+  font-family: "JetBrains Mono", "Cascadia Code", monospace;
+  font-size: 0.88em;
+}
+
+.card-meta { font-size: 0.75em; color: @overlay0; }
+
+.card-actions { opacity: 0; transition: opacity 120ms ease; }
+.clipboard-card:hover .card-actions { opacity: 1; }
+
+.card-action-button {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border-radius: 6px;
+  color: @subtext0;
+}
+
+.card-action-button:hover { background-color: alpha(@text, 0.1); }
+
+.destructive-hover:hover {
+  background-color: alpha(@red, 0.18);
+  color: @red;
+}
+
+.empty-state-icon { color: @overlay0; margin-bottom: 4px; }
+.empty-state-title { font-size: 1em; font-weight: 600; color: @text; }
+.empty-state-subtitle { font-size: 0.85em; color: @overlay0; }
