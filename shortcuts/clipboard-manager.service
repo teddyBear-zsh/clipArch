@@ -1,0 +1,23 @@
+[Unit]
+Description=Clipboard Manager
+# Wait until the graphical session (Wayland/GNOME Shell) is actually up,
+# so WAYLAND_DISPLAY and friends are available.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=__PYTHON_BIN__ __INSTALL_DIR__/main.py
+
+# If it crashes, bring it back - but not in a tight loop.
+Restart=on-failure
+RestartSec=2
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Clean up a stale lock file left behind by a hard crash (e.g. kill -9)
+# before each start attempt, so restarts don't get stuck refusing to run.
+ExecStartPre=-/usr/bin/env bash -c 'test -f /tmp/clipboard-manager.lock && ! kill -0 "$(cat /tmp/clipboard-manager.lock 2>/dev/null)" 2>/dev/null && rm -f /tmp/clipboard-manager.lock; true'
+
+[Install]
+WantedBy=graphical-session.target
