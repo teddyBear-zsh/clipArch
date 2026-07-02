@@ -1,0 +1,189 @@
+/*
+ * Default theme — inherits the GTK system theme (colors, accent) so it
+ * matches GNOME or whatever GTK theme is active under Hyprland.
+ * Custom ricing themes (catppuccin.css, nord.css, etc.) override the
+ * color values below while keeping this same structure/selectors.
+ */
+
+/* ---------------------------------------------------------------------
+ * Popup shell
+ * ------------------------------------------------------------------- */
+
+.clipboard-popup {
+  background-color: @theme_bg_color;
+  border-radius: 14px;
+  border: 1px solid alpha(@borders, 0.6);
+  box-shadow: 0 12px 40px alpha(black, 0.35);
+}
+
+.popup-root {
+  background-color: transparent;
+}
+
+/* ---------------------------------------------------------------------
+ * Toolbar
+ * ------------------------------------------------------------------- */
+
+.toolbar {
+  background-color: transparent;
+}
+
+.filter-group {
+  background-color: alpha(@theme_fg_color, 0.05);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.filter-button {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 4px;
+  border-radius: 6px;
+  color: alpha(@theme_fg_color, 0.55);
+}
+
+.filter-button:checked {
+  background-color: @accent_bg_color;
+  color: @accent_fg_color;
+}
+
+.filter-button:hover:not(:checked) {
+  background-color: alpha(@theme_fg_color, 0.08);
+}
+
+.clear-all-button {
+  font-size: 0.85em;
+  color: alpha(@theme_fg_color, 0.6);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.clear-all-button:hover {
+  background-color: alpha(#e01b24, 0.12);
+  color: #e01b24;
+}
+
+.stats-label {
+  font-size: 0.75em;
+  color: alpha(@theme_fg_color, 0.45);
+}
+
+.toolbar-separator {
+  background-color: alpha(@borders, 0.5);
+  min-height: 1px;
+}
+
+/* ---------------------------------------------------------------------
+ * Card list
+ * ------------------------------------------------------------------- */
+
+.card-list {
+  background-color: transparent;
+  padding: 6px;
+}
+
+.clipboard-card {
+  background-color: transparent;
+  border-radius: 10px;
+  margin: 2px 0;
+  border-left: 3px solid transparent;
+  transition: background-color 120ms ease;
+}
+
+.clipboard-card:hover {
+  background-color: alpha(@theme_fg_color, 0.05);
+}
+
+/* Pinned items: accent-colored left border instead of a generic pin badge */
+.clipboard-card.pinned {
+  border-left: 3px solid @accent_bg_color;
+  background-color: alpha(@accent_bg_color, 0.06);
+}
+
+.clipboard-card.pinned:hover {
+  background-color: alpha(@accent_bg_color, 0.1);
+}
+
+/* Truncated / oversized items — visually muted, not pasteable */
+.clipboard-card.truncated {
+  opacity: 0.65;
+}
+
+.clipboard-card.truncated:hover {
+  background-color: transparent;
+}
+
+.card-row {
+  background-color: transparent;
+}
+
+.card-icon {
+  color: alpha(@theme_fg_color, 0.5);
+  background-color: alpha(@theme_fg_color, 0.06);
+  border-radius: 8px;
+}
+
+.card-thumbnail {
+  border-radius: 8px;
+}
+
+.card-preview {
+  font-size: 0.95em;
+  color: @theme_fg_color;
+}
+
+.card-preview.monospace {
+  font-family: "JetBrains Mono", "Cascadia Code", monospace;
+  font-size: 0.88em;
+}
+
+.card-meta {
+  font-size: 0.75em;
+  color: alpha(@theme_fg_color, 0.45);
+}
+
+.card-actions {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.clipboard-card:hover .card-actions {
+  opacity: 1;
+}
+
+.card-action-button {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border-radius: 6px;
+  color: alpha(@theme_fg_color, 0.55);
+}
+
+.card-action-button:hover {
+  background-color: alpha(@theme_fg_color, 0.1);
+}
+
+.destructive-hover:hover {
+  background-color: alpha(#e01b24, 0.15);
+  color: #e01b24;
+}
+
+/* ---------------------------------------------------------------------
+ * Empty state
+ * ------------------------------------------------------------------- */
+
+.empty-state-icon {
+  color: alpha(@theme_fg_color, 0.25);
+  margin-bottom: 4px;
+}
+
+.empty-state-title {
+  font-size: 1em;
+  font-weight: 600;
+  color: alpha(@theme_fg_color, 0.7);
+}
+
+.empty-state-subtitle {
+  font-size: 0.85em;
+  color: alpha(@theme_fg_color, 0.45);
+}
